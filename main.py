@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 
 import anthropic
@@ -43,10 +44,13 @@ def optimise_shutdown(work_orders: pd.DataFrame) -> dict:
     client = anthropic.Anthropic()
     message = client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=4096,
+        max_tokens=8096,
         messages=[{"role": "user", "content": build_prompt(work_orders)}],
     )
-    return json.loads(message.content[0].text)
+    text = message.content[0].text.strip()
+    text = re.sub(r'^```(?:json)?\s*', '', text)
+    text = re.sub(r'\s*```$', '', text)
+    return json.loads(text)
 
 
 def export_to_excel(result: dict, output_path: str):
