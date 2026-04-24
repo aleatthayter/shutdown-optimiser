@@ -1,0 +1,13 @@
+work_order_id,description,priority,area,duration_hours,crew_type,access_required
+WO-3841,PM - PP-001 brg chk & lub,1,Pump Station A,2,Mechanical,None
+WO-3842,PM - CV-01 idler replacement SEC 4-6,2,Conveyor CV-01,4,Mechanical,Scaffolding
+WO-3843,Insp - MCC-1 switchboard panels,1,MCC Room 1,1,Electrical,Isolation
+WO-3844,PM - CR-01 main brg lub,2,Crusher Area,3,Mechanical,None
+WO-3845,Maint - HX-103 tube bundle inspect,3,Process Plant,8,Mechanical,Scaffolding
+WO-3846,Insp - CV-01 structure above SEC 4-6,3,Conveyor CV-01,2,Structural,Scaffolding
+WO-3847,Replace - PP-001 motor coupling,1,Pump Station A,3,Mechanical,None
+WO-3848,Cal - FT-204 FT-206 FT-208,2,Process Plant,1.5,Instrumentation,None
+WO-3849,Replace - FV-112 actuator,2,Process Plant,4,Mechanical,Isolation
+WO-3850,Insp - CR-01 area structural steelwork,3,Crusher Area,3,Structural,Scaffolding
+WO-3851,Insp - CR-01 liner wear assessment,1,Crusher Area,4,Mechanical,None
+WO-3852,Test - ESD system MCC-1,1,MCC Room 1,2,Electrical,Isolation
