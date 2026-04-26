@@ -1,12 +1,41 @@
-import json
-import re
 from pathlib import Path
+from typing import List
 
-import anthropic
 import pandas as pd
+from langchain_anthropic import ChatAnthropic
+from pydantic import BaseModel
 
 
 SHUTDOWN_HOURS = 48
+
+
+class WorkOrderTask(BaseModel):
+    sequence: int
+    work_order_id: str
+    original_description: str
+    improved_description: str
+    area: str
+    priority: int
+    duration_hours: float
+    crew_type: str
+    access_required: str
+    planned_start_hour: float
+    planned_end_hour: float
+    grouping_rationale: str
+    at_risk: bool
+
+
+class ShutdownSummary(BaseModel):
+    total_planned_hours: float
+    shutdown_window_hours: int
+    overrun_risk: bool
+    overrun_risk_notes: str
+    tasks_at_risk: List[str]
+
+
+class OptimisedPlan(BaseModel):
+    optimised_plan: List[WorkOrderTask]
+    summary: ShutdownSummary
 
 
 def load_work_orders(filepath: str) -> pd.DataFrame:
@@ -28,40 +57,24 @@ Your task:
 3. Order groups so the most critical work happens first.
 4. Rewrite each terse SAP description into a clear, specific, actionable instruction for a field worker.
 5. Assign a planned start time (hours from shutdown start, T+0) based on logical sequencing.
-6. Flag any task where the planned end time exceeds {SHUTDOWN_HOURS} hours as at_risk.
-
-Return ONLY valid JSON with two keys:
-- "optimised_plan": array of objects, each with:
-    sequence, work_order_id, original_description, improved_description,
-    area, priority, duration_hours, crew_type, access_required,
-    planned_start_hour, planned_end_hour, grouping_rationale, at_risk
-- "summary": object with:
-    total_planned_hours, shutdown_window_hours, overrun_risk (bool),
-    overrun_risk_notes, tasks_at_risk (list of work_order_id strings)"""
+6. Flag any task where the planned end time exceeds {SHUTDOWN_HOURS} hours as at_risk."""
 
 
-def optimise_shutdown(work_orders: pd.DataFrame) -> dict:
-    client = anthropic.Anthropic()
-    message = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=8096,
-        messages=[{"role": "user", "content": build_prompt(work_orders)}],
-    )
-    text = message.content[0].text.strip()
-    text = re.sub(r'^```(?:json)?\s*', '', text)
-    text = re.sub(r'\s*```$', '', text)
-    return json.loads(text)
+def optimise_shutdown(work_orders: pd.DataFrame) -> OptimisedPlan:
+    llm = ChatAnthropic(model="claude-sonnet-4-6", max_tokens=8096)
+    structured_llm = llm.with_structured_output(OptimisedPlan)
+    return structured_llm.invoke(build_prompt(work_orders))
 
 
-def export_to_excel(result: dict, output_path: str):
+def export_to_excel(result: OptimisedPlan, output_path: str):
     columns = [
         "sequence", "work_order_id", "area", "priority", "crew_type",
         "access_required", "improved_description", "original_description",
         "duration_hours", "planned_start_hour", "planned_end_hour",
         "grouping_rationale", "at_risk",
     ]
-    df_plan = pd.DataFrame(result["optimised_plan"])[columns]
-    df_summary = pd.DataFrame([result["summary"]])
+    df_plan = pd.DataFrame([task.model_dump() for task in result.optimised_plan])[columns]
+    df_summary = pd.DataFrame([result.summary.model_dump()])
 
     with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
         df_plan.to_excel(writer, sheet_name="Optimised Plan", index=False)
@@ -79,9 +92,8 @@ def main():
     export_to_excel(result, output_path)
     print(f"Plan written to {output_path}")
 
-    summary = result["summary"]
-    if summary["overrun_risk"]:
-        print(f"WARNING: Overrun risk — {summary['overrun_risk_notes']}")
+    if result.summary.overrun_risk:
+        print(f"WARNING: Overrun risk — {result.summary.overrun_risk_notes}")
     else:
         print("No overrun risk detected.")
 
